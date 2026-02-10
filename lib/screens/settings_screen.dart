@@ -11,27 +11,36 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _controller = TextEditingController();
+  final _serverController = TextEditingController();
+  final _powerSyncController = TextEditingController();
   bool _saved = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUrl();
+    _loadUrls();
   }
 
-  Future<void> _loadUrl() async {
-    final url = await PreferencesService.getServerUrl();
-    _controller.text = url;
+  Future<void> _loadUrls() async {
+    final serverUrl = await PreferencesService.getServerUrl();
+    final powerSyncUrl = await PreferencesService.getPowerSyncUrl();
+    _serverController.text = serverUrl;
+    _powerSyncController.text = powerSyncUrl;
+  }
+
+  String _cleanUrl(String url) {
+    final trimmed = url.trim();
+    return trimmed.endsWith('/') ? trimmed.substring(0, trimmed.length - 1) : trimmed;
   }
 
   Future<void> _save() async {
-    final url = _controller.text.trim();
-    if (url.isEmpty) return;
+    final serverUrl = _serverController.text.trim();
+    final powerSyncUrl = _powerSyncController.text.trim();
+    if (serverUrl.isEmpty || powerSyncUrl.isEmpty) return;
 
-    // Remove trailing slash
-    final cleanUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
-    await PreferencesService.setServerUrl(cleanUrl);
+    await PreferencesService.setServerUrl(_cleanUrl(serverUrl));
+    await PreferencesService.setPowerSyncUrl(_cleanUrl(powerSyncUrl));
+
     setState(() => _saved = true);
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _saved = false);
@@ -40,7 +49,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _serverController.dispose();
+    _powerSyncController.dispose();
     super.dispose();
   }
 
@@ -53,6 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Server URL
             Text(
               'SERVER URL',
               style: GoogleFonts.inter(
@@ -64,7 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: _controller,
+              controller: _serverController,
               keyboardType: TextInputType.url,
               autocorrect: false,
               style: GoogleFonts.inter(
@@ -83,7 +94,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: AppColors.textTertiary,
               ),
             ),
+            const SizedBox(height: 32),
+
+            // PowerSync URL
+            Text(
+              'POWERSYNC URL',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textTertiary,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _powerSyncController,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                color: AppColors.textPrimary,
+              ),
+              decoration: const InputDecoration(
+                hintText: 'http://10.0.2.2:8080',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'PowerSync service URL. Default port is 8080.',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.textTertiary,
+              ),
+            ),
             const SizedBox(height: 24),
+
+            // Save button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

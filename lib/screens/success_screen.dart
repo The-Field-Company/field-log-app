@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../models/session.dart';
+import '../widgets/sync_status_widget.dart';
 
 class SuccessScreen extends StatelessWidget {
   const SuccessScreen({super.key});
@@ -48,6 +49,8 @@ class SuccessScreen extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                const SizedBox(height: 12),
+                const SyncStatusText(),
                 const SizedBox(height: 48),
                 SizedBox(
                   width: double.infinity,

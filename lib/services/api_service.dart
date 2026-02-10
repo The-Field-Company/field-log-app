@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/session.dart';
 import 'preferences_service.dart';
+import 'auth_service.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -13,20 +14,29 @@ class ApiException implements Exception {
 }
 
 class ApiService {
+  static Future<Map<String, String>> _authHeaders() async {
+    final headers = <String, String>{'Accept': 'application/json'};
+    final token = await AuthService.getToken();
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
   static Future<Session> getSession(String sessionId) async {
     final serverUrl = await PreferencesService.getServerUrl();
     final url = Uri.parse('$serverUrl/api/sessions/$sessionId/');
 
     final response = await http.get(
       url,
-      headers: {'Accept': 'application/json'},
+      headers: await _authHeaders(),
     );
 
     if (response.statusCode == 404) {
       throw ApiException('Session not found. Please check the session ID and try again.', statusCode: 404);
     }
     if (response.statusCode == 401 || response.statusCode == 403) {
-      throw ApiException('This session requires authentication and is not available for public access.', statusCode: response.statusCode);
+      throw ApiException('This session requires authentication.', statusCode: response.statusCode);
     }
     if (response.statusCode >= 500) {
       throw ApiException('The server is temporarily unavailable. Please try again later.', statusCode: response.statusCode);
@@ -36,13 +46,7 @@ class ApiService {
     }
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
-    final session = Session.fromJson(json);
-
-    if (!session.isPublic) {
-      throw ApiException('Session is not public');
-    }
-
-    return session;
+    return Session.fromJson(json);
   }
 
   static Future<void> createSubmission(

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../models/session.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
+import '../services/preferences_service.dart';
+import '../services/powersync_service.dart';
 
 class EntryScreen extends StatefulWidget {
   const EntryScreen({super.key});
@@ -14,6 +18,25 @@ class _EntryScreenState extends State<EntryScreen> {
   final _controller = TextEditingController();
   bool _loading = false;
   String? _error;
+  String? _username;
+  Session? _cachedSession;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsername();
+    _loadCachedSession();
+  }
+
+  Future<void> _loadUsername() async {
+    final username = await AuthService.getUsernameAsync();
+    if (mounted) setState(() => _username = username);
+  }
+
+  Future<void> _loadCachedSession() async {
+    final session = await PreferencesService.getCachedSession();
+    if (mounted) setState(() => _cachedSession = session);
+  }
 
   Future<void> _loadForm() async {
     final id = _controller.text.trim();
@@ -29,6 +52,7 @@ class _EntryScreenState extends State<EntryScreen> {
 
     try {
       final session = await ApiService.getSession(id);
+      await PreferencesService.cacheSession(session);
       if (!mounted) return;
       Navigator.pushNamed(context, '/form', arguments: session);
     } on ApiException catch (e) {
@@ -38,6 +62,14 @@ class _EntryScreenState extends State<EntryScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _logout() async {
+    await PowerSyncService.disconnectPowerSync();
+    await AuthService.logout();
+    await PreferencesService.clearCachedSession();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
   }
 
   @override
@@ -52,16 +84,35 @@ class _EntryScreenState extends State<EntryScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top bar with settings
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: IconButton(
-                  icon: const Icon(Icons.settings_outlined,
-                      color: AppColors.textTertiary),
-                  onPressed: () => Navigator.pushNamed(context, '/settings'),
-                ),
+            // Top bar with username, settings, logout
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  if (_username != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        _username!,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.settings_outlined,
+                        color: AppColors.textTertiary),
+                    onPressed: () => Navigator.pushNamed(context, '/settings'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout_outlined,
+                        color: AppColors.textTertiary),
+                    onPressed: _logout,
+                    tooltip: 'Sign out',
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -84,6 +135,47 @@ class _EntryScreenState extends State<EntryScreen> {
                       ),
                     ),
                     const SizedBox(height: 48),
+
+                    // Continue previous session
+                    if (_cachedSession != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/form',
+                                arguments: _cachedSession,
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.accent,
+                              side: const BorderSide(color: AppColors.accent),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 14, horizontal: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.play_arrow_rounded, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Continue: ${_cachedSession!.name}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
 
                     // Session ID input
                     TextField(

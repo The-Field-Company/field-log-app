@@ -29,6 +29,16 @@ class Session {
     );
   }
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'description': description,
+        'form_config': formConfig,
+        'is_active': isActive,
+        'is_public': isPublic,
+        'created_at': createdAt,
+      };
+
   String get formMode => formConfig['form_mode'] ?? 'formkit';
   bool get trackLocation => formConfig['track_location'] == true;
   List<dynamic> get components => formConfig['components'] ?? [];

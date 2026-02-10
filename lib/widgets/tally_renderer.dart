@@ -19,6 +19,7 @@ class TallyRenderer extends StatefulWidget {
 
 class _TallyRendererState extends State<TallyRenderer> {
   TallyComponent? _activeGroup;
+  final Map<String, int> _counts = {};
 
   List<TallyComponent> get _parsed =>
       widget.components
@@ -29,10 +30,15 @@ class _TallyRendererState extends State<TallyRenderer> {
     if (_activeGroup != null) {
       return _activeGroup!.children;
     }
-    return _parsed;
+    return _parsed
+        .where((c) => !c.isGroup || c.children.isNotEmpty)
+        .toList();
   }
 
   void _handleTap(TallyComponent item) {
+    setState(() {
+      _counts[item.key] = (_counts[item.key] ?? 0) + 1;
+    });
     final data = <String, dynamic>{
       'tally_key': item.key,
       'tally_label': item.label,
@@ -101,6 +107,7 @@ class _TallyRendererState extends State<TallyRenderer> {
               }
               return _TallyCard(
                 item: item,
+                count: _counts[item.key] ?? 0,
                 onTap: () => _handleTap(item),
               );
             },
@@ -113,9 +120,10 @@ class _TallyRendererState extends State<TallyRenderer> {
 
 class _TallyCard extends StatefulWidget {
   final TallyComponent item;
+  final int count;
   final VoidCallback onTap;
 
-  const _TallyCard({required this.item, required this.onTap});
+  const _TallyCard({required this.item, required this.count, required this.onTap});
 
   @override
   State<_TallyCard> createState() => _TallyCardState();
@@ -148,7 +156,7 @@ class _TallyCardState extends State<_TallyCard>
   void _handleTap() {
     _animController.forward().then((_) => _animController.reverse());
     setState(() => _showPlus = true);
-    Future.delayed(const Duration(milliseconds: 600), () {
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) setState(() => _showPlus = false);
     });
     widget.onTap();
@@ -156,15 +164,19 @@ class _TallyCardState extends State<_TallyCard>
 
   @override
   Widget build(BuildContext context) {
+    final tapped = _showPlus;
+
     return ScaleTransition(
       scale: _scaleAnim,
       child: GestureDetector(
         onTap: _handleTap,
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: tapped ? AppColors.accent : Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.borderColor),
+            border: Border.all(
+              color: tapped ? AppColors.accent : AppColors.borderColor,
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
@@ -188,9 +200,9 @@ class _TallyCardState extends State<_TallyCard>
                                 child: Image.network(
                                   widget.item.image!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (c, e, s) => const Icon(
+                                  errorBuilder: (c, e, s) => Icon(
                                     Icons.image_not_supported_outlined,
-                                    color: AppColors.textTertiary,
+                                    color: tapped ? Colors.white70 : AppColors.textTertiary,
                                     size: 32,
                                   ),
                                 ),
@@ -201,8 +213,8 @@ class _TallyCardState extends State<_TallyCard>
                               widget.item.label,
                               style: GoogleFonts.inter(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                                color: tapped ? Colors.white : AppColors.textPrimary,
                               ),
                               textAlign: TextAlign.center,
                               maxLines: 2,
@@ -214,29 +226,47 @@ class _TallyCardState extends State<_TallyCard>
                           widget.item.label,
                           style: GoogleFonts.inter(
                             fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            color: tapped ? Colors.white : AppColors.textPrimary,
                           ),
                           textAlign: TextAlign.center,
                         ),
                 ),
               ),
-              // +1 overlay
-              if (_showPlus)
-                Positioned.fill(
+              // Count badge
+              if (widget.count > 0)
+                Positioned(
+                  top: 6,
+                  right: 6,
                   child: Container(
+                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.15),
+                      color: tapped ? Colors.white : AppColors.accent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
                       child: Text(
-                        '+1',
+                        '${widget.count}',
                         style: GoogleFonts.inter(
-                          fontSize: 32,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.accent,
+                          color: tapped ? AppColors.accent : Colors.white,
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+              // +1 overlay
+              if (tapped)
+                Positioned.fill(
+                  child: Center(
+                    child: Text(
+                      '+1',
+                      style: GoogleFonts.inter(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
                       ),
                     ),
                   ),
