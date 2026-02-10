@@ -1,0 +1,324 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../models/tally_component.dart';
+import '../theme/app_colors.dart';
+
+class TallyRenderer extends StatefulWidget {
+  final List<dynamic> components;
+  final void Function(Map<String, dynamic> data) onTap;
+
+  const TallyRenderer({
+    super.key,
+    required this.components,
+    required this.onTap,
+  });
+
+  @override
+  State<TallyRenderer> createState() => _TallyRendererState();
+}
+
+class _TallyRendererState extends State<TallyRenderer> {
+  TallyComponent? _activeGroup;
+
+  List<TallyComponent> get _parsed =>
+      widget.components
+          .map((c) => TallyComponent.fromJson(c as Map<String, dynamic>))
+          .toList();
+
+  List<TallyComponent> get _currentItems {
+    if (_activeGroup != null) {
+      return _activeGroup!.children;
+    }
+    return _parsed;
+  }
+
+  void _handleTap(TallyComponent item) {
+    final data = <String, dynamic>{
+      'tally_key': item.key,
+      'tally_label': item.label,
+      'count': 1,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+    if (_activeGroup != null) {
+      data['tally_group'] = _activeGroup!.key;
+    }
+    widget.onTap(data);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _currentItems;
+
+    return Column(
+      children: [
+        // Group breadcrumb
+        if (_activeGroup != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade200),
+              ),
+            ),
+            child: GestureDetector(
+              onTap: () => setState(() => _activeGroup = null),
+              child: Row(
+                children: [
+                  const Icon(Icons.arrow_back_ios,
+                      size: 16, color: AppColors.accent),
+                  const SizedBox(width: 4),
+                  Text(
+                    _activeGroup!.label,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        // Grid
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              if (item.isGroup) {
+                return _GroupCard(
+                  item: item,
+                  onTap: () => setState(() => _activeGroup = item),
+                );
+              }
+              return _TallyCard(
+                item: item,
+                onTap: () => _handleTap(item),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TallyCard extends StatefulWidget {
+  final TallyComponent item;
+  final VoidCallback onTap;
+
+  const _TallyCard({required this.item, required this.onTap});
+
+  @override
+  State<_TallyCard> createState() => _TallyCardState();
+}
+
+class _TallyCardState extends State<_TallyCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _scaleAnim;
+  bool _showPlus = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    _animController.forward().then((_) => _animController.reverse());
+    setState(() => _showPlus = true);
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) setState(() => _showPlus = false);
+    });
+    widget.onTap();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scaleAnim,
+      child: GestureDetector(
+        onTap: _handleTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: widget.item.image != null
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  widget.item.image!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (c, e, s) => const Icon(
+                                    Icons.image_not_supported_outlined,
+                                    color: AppColors.textTertiary,
+                                    size: 32,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              widget.item.label,
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        )
+                      : Text(
+                          widget.item.label,
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                ),
+              ),
+              // +1 overlay
+              if (_showPlus)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '+1',
+                        style: GoogleFonts.inter(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.accent,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupCard extends StatelessWidget {
+  final TallyComponent item;
+  final VoidCallback onTap;
+
+  const _GroupCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.accent.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (item.image != null) ...[
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        item.image!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => const Icon(
+                          Icons.folder_outlined,
+                          color: AppColors.accent,
+                          size: 32,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ] else ...[
+                  const Icon(Icons.folder_outlined,
+                      color: AppColors.accent, size: 28),
+                  const SizedBox(height: 8),
+                ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        item.label,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.accent,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right,
+                        size: 18, color: AppColors.accent),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
