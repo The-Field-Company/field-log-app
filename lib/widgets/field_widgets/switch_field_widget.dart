@@ -5,11 +5,17 @@ import '../../theme/app_colors.dart';
 class FieldSwitch extends StatefulWidget {
   final String label;
   final ValueChanged<bool> onChanged;
+  final bool initialValue;
+  final String? labelTrue;
+  final String? labelFalse;
 
   const FieldSwitch({
     super.key,
     required this.label,
     required this.onChanged,
+    this.initialValue = false,
+    this.labelTrue,
+    this.labelFalse,
   });
 
   @override
@@ -17,10 +23,22 @@ class FieldSwitch extends StatefulWidget {
 }
 
 class _FieldSwitchState extends State<FieldSwitch> {
-  bool _value = false;
+  late bool _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.initialValue;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final subtitle = _value
+        ? (widget.labelTrue ?? 'Yes')
+        : (widget.labelFalse ?? 'No');
+    final hasCustomLabels =
+        widget.labelTrue != null || widget.labelFalse != null;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: SwitchListTile(
@@ -31,6 +49,15 @@ class _FieldSwitchState extends State<FieldSwitch> {
             color: AppColors.textPrimary,
           ),
         ),
+        subtitle: hasCustomLabels
+            ? Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              )
+            : null,
         value: _value,
         activeThumbColor: AppColors.accent,
         contentPadding: EdgeInsets.zero,

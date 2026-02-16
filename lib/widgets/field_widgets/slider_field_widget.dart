@@ -8,6 +8,7 @@ class FieldSlider extends StatefulWidget {
   final num max;
   final num step;
   final ValueChanged<double> onChanged;
+  final double? initialValue;
 
   const FieldSlider({
     super.key,
@@ -16,6 +17,7 @@ class FieldSlider extends StatefulWidget {
     this.min = 0,
     this.max = 100,
     this.step = 1,
+    this.initialValue,
   });
 
   @override
@@ -28,7 +30,7 @@ class _FieldSliderState extends State<FieldSlider> {
   @override
   void initState() {
     super.initState();
-    _value = widget.min.toDouble();
+    _value = widget.initialValue ?? widget.min.toDouble();
   }
 
   @override

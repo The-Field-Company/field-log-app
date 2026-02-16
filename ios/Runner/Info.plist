@@ -49,5 +49,9 @@
 	<string>FieldLog needs your location to tag field observations with GPS coordinates.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>FieldLog needs your location to tag field observations with GPS coordinates.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>FieldLog needs camera access to capture photos for field observations.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>FieldLog needs photo library access to attach images to field observations.</string>
 </dict>
 </plist>

@@ -5,12 +5,14 @@ class FieldDatePicker extends StatefulWidget {
   final String label;
   final bool isRequired;
   final ValueChanged<String> onChanged;
+  final String? initialValue;
 
   const FieldDatePicker({
     super.key,
     required this.label,
     required this.onChanged,
     this.isRequired = false,
+    this.initialValue,
   });
 
   @override
@@ -18,7 +20,13 @@ class FieldDatePicker extends StatefulWidget {
 }
 
 class _FieldDatePickerState extends State<FieldDatePicker> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
 
   Future<void> _pick() async {
     final date = await showDatePicker(

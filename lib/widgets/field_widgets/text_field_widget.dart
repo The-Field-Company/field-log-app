@@ -7,6 +7,7 @@ class FieldTextInput extends StatelessWidget {
   final int maxLines;
   final TextInputType keyboardType;
   final ValueChanged<String> onChanged;
+  final String? initialValue;
 
   const FieldTextInput({
     super.key,
@@ -16,6 +17,7 @@ class FieldTextInput extends StatelessWidget {
     this.isRequired = false,
     this.maxLines = 1,
     this.keyboardType = TextInputType.text,
+    this.initialValue,
   });
 
   @override
@@ -23,6 +25,7 @@ class FieldTextInput extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: TextFormField(
+        initialValue: initialValue,
         maxLines: maxLines,
         keyboardType: keyboardType,
         decoration: InputDecoration(

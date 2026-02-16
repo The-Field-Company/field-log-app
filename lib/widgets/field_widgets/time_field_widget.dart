@@ -6,6 +6,7 @@ class FieldTimePicker extends StatefulWidget {
   final bool isRequired;
   final bool includeDate;
   final ValueChanged<String> onChanged;
+  final String? initialValue;
 
   const FieldTimePicker({
     super.key,
@@ -13,6 +14,7 @@ class FieldTimePicker extends StatefulWidget {
     required this.onChanged,
     this.isRequired = false,
     this.includeDate = false,
+    this.initialValue,
   });
 
   @override
@@ -20,7 +22,13 @@ class FieldTimePicker extends StatefulWidget {
 }
 
 class _FieldTimePickerState extends State<FieldTimePicker> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
 
   Future<void> _pick() async {
     String result = '';

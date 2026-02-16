@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
@@ -155,7 +156,30 @@ class _FormScreenState extends State<FormScreen> {
     );
   }
 
+  /// Walk form data and base64-encode any file field values.
+  /// File fields store `{ 'file_path': '...', 'file_name': '...' }`.
+  Future<void> _encodeFiles(Map<String, dynamic> data) async {
+    for (final key in data.keys.toList()) {
+      final value = data[key];
+      if (value is Map<String, dynamic> && value.containsKey('file_path')) {
+        final filePath = value['file_path'] as String;
+        final fileName = value['file_name'] as String? ?? 'file';
+        final file = File(filePath);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          data[key] = {
+            'file_name': fileName,
+            'data': base64Encode(bytes),
+          };
+        }
+      }
+    }
+  }
+
   Future<void> _submitFormData(Map<String, dynamic> data) async {
+    // Base64-encode any captured files before submission
+    await _encodeFiles(data);
+
     // Attach location if tracking
     if (_session.trackLocation) {
       final location = await LocationService.captureLocation();

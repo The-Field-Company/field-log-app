@@ -6,6 +6,7 @@ class FieldDropdown extends StatefulWidget {
   final bool isRequired;
   final List<MapEntry<String, String>> options;
   final ValueChanged<String?> onChanged;
+  final String? initialValue;
 
   const FieldDropdown({
     super.key,
@@ -13,6 +14,7 @@ class FieldDropdown extends StatefulWidget {
     required this.options,
     required this.onChanged,
     this.isRequired = false,
+    this.initialValue,
   });
 
   @override
@@ -21,6 +23,12 @@ class FieldDropdown extends StatefulWidget {
 
 class _FieldDropdownState extends State<FieldDropdown> {
   String? _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.initialValue;
+  }
 
   @override
   Widget build(BuildContext context) {

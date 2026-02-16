@@ -7,6 +7,7 @@ class FieldRadioGroup extends StatefulWidget {
   final bool isRequired;
   final List<MapEntry<String, String>> options;
   final ValueChanged<String?> onChanged;
+  final String? initialValue;
 
   const FieldRadioGroup({
     super.key,
@@ -14,6 +15,7 @@ class FieldRadioGroup extends StatefulWidget {
     required this.options,
     required this.onChanged,
     this.isRequired = false,
+    this.initialValue,
   });
 
   @override
@@ -24,10 +26,17 @@ class _FieldRadioGroupState extends State<FieldRadioGroup> {
   String? _value;
 
   @override
+  void initState() {
+    super.initState();
+    _value = widget.initialValue;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: FormField<String>(
+        initialValue: _value,
         validator: widget.isRequired
             ? (value) =>
                 _value == null ? '${widget.label} is required' : null
