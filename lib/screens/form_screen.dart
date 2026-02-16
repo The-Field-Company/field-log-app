@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 import '../models/session.dart';
 import '../theme/app_colors.dart';
+import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/powersync_service.dart';
+import '../services/preferences_service.dart';
 import '../services/location_service.dart';
 import '../widgets/formkit_renderer.dart';
 import '../widgets/tally_renderer.dart';
@@ -25,6 +27,7 @@ class _FormScreenState extends State<FormScreen> {
   bool _locationReady = false;
   Map<String, int> _tallyCounts = {};
   bool _tallyCountsLoaded = false;
+  bool _sessionRefreshed = false;
 
   @override
   void didChangeDependencies() {
@@ -35,6 +38,10 @@ class _FormScreenState extends State<FormScreen> {
     }
     if (_session.formMode == 'tally' && !_tallyCountsLoaded) {
       _loadTallyCounts();
+    }
+    if (!_sessionRefreshed) {
+      _sessionRefreshed = true;
+      _refreshSession();
     }
   }
 
@@ -64,6 +71,17 @@ class _FormScreenState extends State<FormScreen> {
         _tallyCounts = counts;
         _tallyCountsLoaded = true;
       });
+    }
+  }
+
+  Future<void> _refreshSession() async {
+    try {
+      final fresh = await ApiService.getSession(_session.id.toString());
+      await PreferencesService.cacheSession(fresh);
+      if (!mounted) return;
+      setState(() => _session = fresh);
+    } catch (_) {
+      // Offline or server error — keep using the cached session
     }
   }
 
