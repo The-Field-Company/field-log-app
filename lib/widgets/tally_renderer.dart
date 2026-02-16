@@ -6,11 +6,13 @@ import '../theme/app_colors.dart';
 class TallyRenderer extends StatefulWidget {
   final List<dynamic> components;
   final void Function(Map<String, dynamic> data) onTap;
+  final Map<String, int> initialCounts;
 
   const TallyRenderer({
     super.key,
     required this.components,
     required this.onTap,
+    this.initialCounts = const {},
   });
 
   @override
@@ -20,6 +22,12 @@ class TallyRenderer extends StatefulWidget {
 class _TallyRendererState extends State<TallyRenderer> {
   TallyComponent? _activeGroup;
   final Map<String, int> _counts = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _counts.addAll(widget.initialCounts);
+  }
 
   List<TallyComponent> get _parsed =>
       widget.components

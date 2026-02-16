@@ -23,6 +23,8 @@ class _FormScreenState extends State<FormScreen> {
   late Session _session;
   String _locationStatus = 'Acquiring location...';
   bool _locationReady = false;
+  Map<String, int> _tallyCounts = {};
+  bool _tallyCountsLoaded = false;
 
   @override
   void didChangeDependencies() {
@@ -30,6 +32,38 @@ class _FormScreenState extends State<FormScreen> {
     _session = ModalRoute.of(context)!.settings.arguments as Session;
     if (_session.trackLocation) {
       _initLocation();
+    }
+    if (_session.formMode == 'tally' && !_tallyCountsLoaded) {
+      _loadTallyCounts();
+    }
+  }
+
+  Future<void> _loadTallyCounts() async {
+    final db = PowerSyncService.getPowerSync();
+    if (db == null) {
+      setState(() => _tallyCountsLoaded = true);
+      return;
+    }
+
+    final rows = await db.getAll(
+      'SELECT data FROM fieldlog_submission WHERE session_id = ?',
+      [_session.id],
+    );
+
+    final counts = <String, int>{};
+    for (final row in rows) {
+      final data = jsonDecode(row['data'] as String) as Map<String, dynamic>;
+      final key = data['tally_key'] as String?;
+      if (key != null) {
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _tallyCounts = counts;
+        _tallyCountsLoaded = true;
+      });
     }
   }
 
@@ -153,6 +187,16 @@ class _FormScreenState extends State<FormScreen> {
     }
 
     if (!mounted) return;
+
+    // Keep local counts in sync without re-querying
+    final tallyKey = data['tally_key'] as String?;
+    if (tallyKey != null) {
+      setState(() {
+        _tallyCounts = Map<String, int>.from(_tallyCounts);
+        _tallyCounts[tallyKey] = (_tallyCounts[tallyKey] ?? 0) + 1;
+      });
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${data['tally_label']} +1'),
@@ -165,9 +209,13 @@ class _FormScreenState extends State<FormScreen> {
   Widget _buildRenderer() {
     switch (_session.formMode) {
       case 'tally':
+        if (!_tallyCountsLoaded) {
+          return const Center(child: CircularProgressIndicator());
+        }
         return TallyRenderer(
           components: _session.components,
           onTap: _submitTally,
+          initialCounts: _tallyCounts,
         );
       case 'surveyjs':
         if (_session.schema != null) {
