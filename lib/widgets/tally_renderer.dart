@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/tally_component.dart';
@@ -205,10 +206,17 @@ class _TallyCardState extends State<_TallyCard>
                             Expanded(
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  widget.item.image!,
+                                child: CachedNetworkImage(
+                                  imageUrl: widget.item.image!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (c, e, s) => Icon(
+                                  placeholder: (context, url) => const Center(
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) => Icon(
                                     Icons.image_not_supported_outlined,
                                     color: tapped ? Colors.white70 : AppColors.textTertiary,
                                     size: 32,
@@ -313,10 +321,17 @@ class _GroupCard extends StatelessWidget {
                   Expanded(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        item.image!,
+                      child: CachedNetworkImage(
+                        imageUrl: item.image!,
                         fit: BoxFit.cover,
-                        errorBuilder: (c, e, s) => const Icon(
+                        placeholder: (context, url) => const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => const Icon(
                           Icons.folder_outlined,
                           color: AppColors.accent,
                           size: 32,
