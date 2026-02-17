@@ -247,13 +247,13 @@ class _Parser {
     final fieldValue = data[fieldName];
 
     if (_current == null) {
-      // bare field — truthy check
-      return fieldValue != null && fieldValue != '' && fieldValue != false;
+      // bare field — truthy check (matches JavaScript semantics)
+      return fieldValue != null && fieldValue != '' && fieldValue != false && fieldValue != 0;
     }
 
     if (_current?.type != _TType.op) {
-      // bare field — truthy check
-      return fieldValue != null && fieldValue != '' && fieldValue != false;
+      // bare field — truthy check (matches JavaScript semantics)
+      return fieldValue != null && fieldValue != '' && fieldValue != false && fieldValue != 0;
     }
 
     final op = _advance().value as String;

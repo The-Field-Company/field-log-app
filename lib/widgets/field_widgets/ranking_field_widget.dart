@@ -108,9 +108,12 @@ class _RankingFieldWidgetState extends State<RankingFieldWidget> {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  trailing: const Icon(
-                    Icons.drag_handle,
-                    color: AppColors.textTertiary,
+                  trailing: ReorderableDragStartListener(
+                    index: index,
+                    child: const Icon(
+                      Icons.drag_handle,
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                   dense: true,
                   contentPadding:
