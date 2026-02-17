@@ -19,6 +19,7 @@ import 'field_widgets/tagbox_field_widget.dart';
 import 'field_widgets/ranking_field_widget.dart';
 import 'field_widgets/image_field_widget.dart';
 import 'field_widgets/file_field_widget.dart';
+import 'field_widgets/image_picker_field_widget.dart';
 
 class SurveyjsRenderer extends StatefulWidget {
   final Map<String, dynamic> schema;
@@ -193,12 +194,31 @@ class _SurveyjsRendererState extends State<SurveyjsRenderer> {
           initialValue: _data[element.name] as int?,
           onChanged: (v) => _updateData(element.name, v),
         );
+      case 'slider':
+        child = FieldSlider(
+          label: element.title,
+          min: element.min ?? 0,
+          max: element.max ?? 100,
+          step: element.step ?? 1,
+          initialValue: (_data[element.name] as num?)?.toDouble(),
+          onChanged: (v) => _updateData(element.name, v),
+        );
       case 'html':
         child = HtmlFieldWidget(html: element.html ?? '');
       case 'image':
         child = ImageFieldWidget(
           imageLink: element.imageLink ?? '',
           label: element.title,
+        );
+      case 'imagepicker':
+        child = ImagePickerFieldWidget(
+          label: element.title,
+          choices: element.choices,
+          multiSelect: element.multiSelect,
+          showLabel: element.showLabel,
+          isRequired: isRequired,
+          initialValue: _data[element.name],
+          onChanged: (v) => _updateData(element.name, v),
         );
       case 'panel':
         child = _buildPanel(element);

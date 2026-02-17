@@ -52,6 +52,10 @@ class SurveyElement {
   final num? max;
   final num? step;
 
+  // ImagePicker
+  final bool multiSelect;
+  final bool showLabel;
+
   SurveyElement({
     required this.type,
     required this.name,
@@ -83,6 +87,8 @@ class SurveyElement {
     this.min,
     this.max,
     this.step,
+    this.multiSelect = false,
+    this.showLabel = true,
   });
 
   factory SurveyElement.fromJson(Map<String, dynamic> json) {
@@ -129,6 +135,8 @@ class SurveyElement {
       min: json['min'],
       max: json['max'],
       step: json['step'],
+      multiSelect: json['multiSelect'] == true,
+      showLabel: json['showLabel'] != false,
     );
   }
 
@@ -146,13 +154,15 @@ class SurveyElement {
 class SurveyChoice {
   final String value;
   final String text;
+  final String? imageLink;
 
-  SurveyChoice({required this.value, required this.text});
+  SurveyChoice({required this.value, required this.text, this.imageLink});
 
   factory SurveyChoice.fromJson(Map<String, dynamic> json) {
     return SurveyChoice(
       value: json['value']?.toString() ?? '',
       text: json['text']?.toString() ?? json['value']?.toString() ?? '',
+      imageLink: json['imageLink']?.toString(),
     );
   }
 }
