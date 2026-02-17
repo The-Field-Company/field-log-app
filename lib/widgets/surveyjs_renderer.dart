@@ -35,7 +35,7 @@ class SurveyjsRenderer extends StatefulWidget {
 }
 
 class _SurveyjsRendererState extends State<SurveyjsRenderer> {
-  final _formKey = GlobalKey<FormState>();
+  GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final Map<String, dynamic> _data = {};
   int _currentPage = 0;
 
@@ -94,13 +94,19 @@ class _SurveyjsRendererState extends State<SurveyjsRenderer> {
     if (!_formKey.currentState!.validate()) return;
     final pages = _visiblePages;
     if (_currentPage < pages.length - 1) {
-      setState(() => _currentPage++);
+      setState(() {
+        _currentPage++;
+        _formKey = GlobalKey<FormState>();
+      });
     }
   }
 
   void _prevPage() {
     if (_currentPage > 0) {
-      setState(() => _currentPage--);
+      setState(() {
+        _currentPage--;
+        _formKey = GlobalKey<FormState>();
+      });
     }
   }
 
@@ -260,12 +266,15 @@ class _SurveyjsRendererState extends State<SurveyjsRenderer> {
     }
 
     if (!isEnabled) {
-      return IgnorePointer(
+      child = IgnorePointer(
         child: Opacity(opacity: 0.5, child: child),
       );
     }
 
-    return child;
+    return KeyedSubtree(
+      key: ValueKey(element.name),
+      child: child,
+    );
   }
 
   // ── Text element with inputType routing ──
@@ -341,6 +350,7 @@ class _SurveyjsRendererState extends State<SurveyjsRenderer> {
         ),
         if (_data[element.name] == 'other')
           FieldTextInput(
+            key: ValueKey('${element.name}-Comment'),
             label: '${element.title} - please specify',
             onChanged: (v) =>
                 _updateData('${element.name}-Comment', v),
@@ -375,6 +385,7 @@ class _SurveyjsRendererState extends State<SurveyjsRenderer> {
         ),
         if (_data[element.name] == 'other')
           FieldTextInput(
+            key: ValueKey('${element.name}-Comment'),
             label: '${element.title} - please specify',
             onChanged: (v) =>
                 _updateData('${element.name}-Comment', v),
@@ -410,6 +421,7 @@ class _SurveyjsRendererState extends State<SurveyjsRenderer> {
         ),
         if (selected.contains('other'))
           FieldTextInput(
+            key: ValueKey('${element.name}-Comment'),
             label: '${element.title} - please specify',
             onChanged: (v) =>
                 _updateData('${element.name}-Comment', v),
