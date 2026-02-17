@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fieldlog_mobile/models/session.dart';
 
-/// Simulate what jsonDecode produces: all maps are Map<String, dynamic>.
-/// Dart map literals in tests produce Map<dynamic, dynamic> when the
-/// compiler can't infer the type, which would cause false type errors.
+// Simulate what jsonDecode produces: all maps are Map<String, dynamic>.
+// Dart map literals in tests produce Map<dynamic, dynamic> when the
+// compiler can't infer the type, which would cause false type errors.
 Map<String, dynamic> _json(Map<String, dynamic> m) =>
     jsonDecode(jsonEncode(m)) as Map<String, dynamic>;
 
