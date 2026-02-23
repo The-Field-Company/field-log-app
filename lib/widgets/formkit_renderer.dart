@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/form_component.dart';
+import '../theme/app_colors.dart';
 import 'field_widgets/text_field_widget.dart';
 import 'field_widgets/dropdown_field_widget.dart';
 import 'field_widgets/radio_field_widget.dart';
@@ -25,11 +27,25 @@ class FormkitRenderer extends StatefulWidget {
 class _FormkitRendererState extends State<FormkitRenderer> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, dynamic> _data = {};
+  late List<FormComponent> _parsed;
 
-  List<FormComponent> get _parsed =>
-      widget.components
+  @override
+  void initState() {
+    super.initState();
+    _parsed = widget.components
+        .map((c) => FormComponent.fromJson(c as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  void didUpdateWidget(FormkitRenderer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.components, oldWidget.components)) {
+      _parsed = widget.components
           .map((c) => FormComponent.fromJson(c as Map<String, dynamic>))
           .toList();
+    }
+  }
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
@@ -130,7 +146,35 @@ class _FormkitRendererState extends State<FormkitRenderer> {
       case 'color':
       case 'file':
       case 'password':
-        return const SizedBox.shrink();
+        // M5: render a visible placeholder so users know a field is present but
+        // not supported in mobile FormKit mode, rather than silently hiding it.
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: AppColors.borderColor),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline,
+                    size: 16, color: AppColors.textTertiary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${comp.label} (not supported in this form mode)',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       default:
         // textfield and any unknown types
         return FieldTextInput(

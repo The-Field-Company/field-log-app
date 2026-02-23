@@ -17,7 +17,20 @@ class AuthService {
   static Timer? _refreshTimer;
   static Completer<String>? _refreshCompleter;
 
+  // M4: client-side login rate limiting (in-memory, resets on app restart).
+  // Server-side rate limiting is the real security control; this improves UX.
+  static int _failedLoginAttempts = 0;
+  static DateTime? _loginLockedUntil;
+  static const _maxLoginAttempts = 3;
+  static const _loginLockoutDuration = Duration(seconds: 60);
+
   static Future<void> login(String username, String password) async {
+    // Check lockout before attempting
+    if (_loginLockedUntil != null && DateTime.now().isBefore(_loginLockedUntil!)) {
+      final remaining = _loginLockedUntil!.difference(DateTime.now()).inSeconds;
+      throw Exception('Too many failed attempts. Please wait $remaining seconds before trying again.');
+    }
+
     final serverUrl = await PreferencesService.getServerUrl();
     final url = Uri.parse('$serverUrl/api/token/');
 
@@ -35,8 +48,18 @@ class AuthService {
     }
 
     if (response.statusCode != 200) {
+      _failedLoginAttempts++;
+      if (_failedLoginAttempts >= _maxLoginAttempts) {
+        _loginLockedUntil = DateTime.now().add(_loginLockoutDuration);
+        _failedLoginAttempts = 0;
+        throw Exception('Too many failed attempts. Please wait 60 seconds before trying again.');
+      }
       throw Exception('Invalid username or password');
     }
+
+    // Success — clear any previous lockout state
+    _failedLoginAttempts = 0;
+    _loginLockedUntil = null;
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     await _storage.write(key: _accessTokenKey, value: data['access'] as String);
