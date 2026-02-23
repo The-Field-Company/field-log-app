@@ -167,11 +167,14 @@ class _EntryScreenState extends State<EntryScreen> {
                               children: [
                                 const Icon(Icons.play_arrow_rounded, size: 20),
                                 const SizedBox(width: 8),
-                                Text(
-                                  'Continue: ${_cachedSession!.name}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                Expanded(
+                                  child: Text(
+                                    'Continue: ${_cachedSession!.name}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
