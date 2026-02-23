@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -39,6 +40,8 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushReplacementNamed(context, '/');
     } on SocketException {
       setState(() => _error = 'No internet connection');
+    } on TimeoutException {
+      setState(() => _error = 'Connection timed out. Check your server address.');
     } catch (e) {
       setState(() => _error = 'Invalid username or password');
     } finally {

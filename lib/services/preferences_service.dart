@@ -5,9 +5,9 @@ import '../models/session.dart';
 
 class PreferencesService {
   static const _serverUrlKey = 'server_url';
-  static const _defaultServerUrl = 'http://10.0.2.2:8000';
+  static const _defaultServerUrl = String.fromEnvironment('SERVER_URL');
   static const _powerSyncUrlKey = 'powersync_url';
-  static const _defaultPowerSyncUrl = 'http://10.0.2.2:8080';
+  static const _defaultPowerSyncUrl = String.fromEnvironment('POWERSYNC_URL');
   static const _cachedSessionKey = 'cached_session';
 
   static Future<String> getServerUrl() async {

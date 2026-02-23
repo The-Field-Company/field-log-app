@@ -44,7 +44,7 @@ class AuthService {
           )
           .timeout(_httpTimeout);
     } on TimeoutException {
-      throw Exception('Connection timed out. Check your network and server address.');
+      throw TimeoutException('Connection timed out. Check your network and server address.');
     }
 
     if (response.statusCode != 200) {

@@ -94,12 +94,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: AppColors.textPrimary,
           ),
           decoration: const InputDecoration(
-            hintText: 'http://10.0.2.2:8000',
+            hintText: 'https://your-server.example.com',
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          'Use http://10.0.2.2:8000 for Android emulator, or your server\'s IP address.',
+          'Set SERVER_URL in your .env.json to configure the default.',
           style: GoogleFonts.inter(
             fontSize: 13,
             color: AppColors.textTertiary,
@@ -127,7 +127,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: AppColors.textPrimary,
           ),
           decoration: const InputDecoration(
-            hintText: 'http://10.0.2.2:8080',
+            hintText: 'https://your-powersync.example.com',
           ),
         ),
         const SizedBox(height: 8),
