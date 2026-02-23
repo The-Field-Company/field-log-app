@@ -294,8 +294,8 @@ class _FormScreenState extends State<FormScreen> {
         children: [
           // Form renderer
           Expanded(child: _buildRenderer()),
-          // GPS status indicator
-          if (_session.trackLocation)
+          // GPS status indicator — only shown while acquiring
+          if (_session.trackLocation && !_locationReady)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

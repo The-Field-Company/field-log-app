@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
@@ -102,13 +101,6 @@ class _EntryScreenState extends State<EntryScreen> {
                       ),
                     ),
                   const Spacer(),
-                  // Settings button — debug builds only
-                  if (kDebugMode)
-                    IconButton(
-                      icon: const Icon(Icons.settings_outlined,
-                          color: AppColors.textTertiary),
-                      onPressed: () => Navigator.pushNamed(context, '/settings'),
-                    ),
                   IconButton(
                     icon: const Icon(Icons.logout_outlined,
                         color: AppColors.textTertiary),
