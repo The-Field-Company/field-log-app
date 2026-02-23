@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/session.dart';
 
@@ -40,7 +41,8 @@ class PreferencesService {
     if (raw == null) return null;
     try {
       return Session.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[PreferencesService] Failed to restore cached session: $e');
       return null;
     }
   }

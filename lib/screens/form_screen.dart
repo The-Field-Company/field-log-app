@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
@@ -81,8 +82,9 @@ class _FormScreenState extends State<FormScreen> {
       await PreferencesService.cacheSession(fresh);
       if (!mounted) return;
       setState(() => _session = fresh);
-    } catch (_) {
+    } catch (e) {
       // Offline or server error — keep using the cached session
+      if (kDebugMode) debugPrint('[FormScreen] Session refresh failed, using cache: $e');
     }
   }
 

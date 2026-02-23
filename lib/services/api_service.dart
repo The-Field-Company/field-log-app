@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/session.dart';
@@ -14,6 +15,8 @@ class ApiException implements Exception {
 }
 
 class ApiService {
+  static const _httpTimeout = Duration(seconds: 30);
+
   static Future<Map<String, String>> _authHeaders() async {
     final headers = <String, String>{'Accept': 'application/json'};
     final token = await AuthService.getToken();
@@ -27,10 +30,14 @@ class ApiService {
     final serverUrl = await PreferencesService.getServerUrl();
     final url = Uri.parse('$serverUrl/api/sessions/$sessionId/');
 
-    final response = await http.get(
-      url,
-      headers: await _authHeaders(),
-    );
+    final http.Response response;
+    try {
+      response = await http
+          .get(url, headers: await _authHeaders())
+          .timeout(_httpTimeout);
+    } on TimeoutException {
+      throw ApiException('Request timed out. Check your connection and try again.');
+    }
 
     if (response.statusCode == 404) {
       throw ApiException('Session not found. Please check the session ID and try again.', statusCode: 404);
@@ -57,17 +64,24 @@ class ApiService {
     final serverUrl = await PreferencesService.getServerUrl();
     final url = Uri.parse('$serverUrl/api/sessions/$sessionId/submissions/');
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode({
-        'submitted_by': submittedBy,
-        'data': data,
-      }),
-    );
+    final http.Response response;
+    try {
+      response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'submitted_by': submittedBy,
+              'data': data,
+            }),
+          )
+          .timeout(_httpTimeout);
+    } on TimeoutException {
+      throw ApiException('Request timed out. Check your connection and try again.');
+    }
 
     if (response.statusCode == 401 || response.statusCode == 403) {
       throw ApiException('This session is no longer accepting public submissions.', statusCode: response.statusCode);

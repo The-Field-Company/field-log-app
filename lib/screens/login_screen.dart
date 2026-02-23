@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
@@ -59,18 +60,19 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top bar with settings
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: IconButton(
-                  icon: const Icon(Icons.settings_outlined,
-                      color: AppColors.textTertiary),
-                  onPressed: () => Navigator.pushNamed(context, '/settings'),
+            // Settings button — debug builds only (not useful to field workers in production)
+            if (kDebugMode)
+              Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: IconButton(
+                    icon: const Icon(Icons.settings_outlined,
+                        color: AppColors.textTertiary),
+                    onPressed: () => Navigator.pushNamed(context, '/settings'),
+                  ),
                 ),
               ),
-            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),

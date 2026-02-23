@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
@@ -19,7 +20,7 @@ void main() async {
     try {
       await PowerSyncService.initPowerSync();
     } catch (e) {
-      debugPrint('[PowerSync] init failed on startup: $e');
+      if (kDebugMode) debugPrint('[PowerSync] init failed on startup: $e');
     }
   }
 

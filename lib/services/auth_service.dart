@@ -1,13 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'preferences_service.dart';
 
 class AuthService {
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _tokenFreshnessMs = 30000;
+  static const _httpTimeout = Duration(seconds: 30);
+
+  // Tokens are stored in the OS keychain / keystore, not plaintext SharedPreferences.
+  static const _storage = FlutterSecureStorage();
 
   static Timer? _refreshTimer;
   static Completer<String>? _refreshCompleter;
@@ -16,20 +21,26 @@ class AuthService {
     final serverUrl = await PreferencesService.getServerUrl();
     final url = Uri.parse('$serverUrl/api/token/');
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'password': password}),
-    );
+    final http.Response response;
+    try {
+      response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'username': username, 'password': password}),
+          )
+          .timeout(_httpTimeout);
+    } on TimeoutException {
+      throw Exception('Connection timed out. Check your network and server address.');
+    }
 
     if (response.statusCode != 200) {
       throw Exception('Invalid username or password');
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_accessTokenKey, data['access'] as String);
-    await prefs.setString(_refreshTokenKey, data['refresh'] as String);
+    await _storage.write(key: _accessTokenKey, value: data['access'] as String);
+    await _storage.write(key: _refreshTokenKey, value: data['refresh'] as String);
 
     scheduleRefresh();
   }
@@ -39,24 +50,24 @@ class AuthService {
     _refreshTimer = null;
     _refreshCompleter = null;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_accessTokenKey);
-    await prefs.remove(_refreshTokenKey);
+    await _storage.delete(key: _accessTokenKey);
+    await _storage.delete(key: _refreshTokenKey);
   }
 
   static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_accessTokenKey);
+    return _storage.read(key: _accessTokenKey);
   }
 
+  // H3: check both existence AND expiry so a stored-but-expired token doesn't
+  // return true and cause silent 401 errors downstream.
   static Future<bool> isAuthenticated() async {
     final token = await getToken();
-    return token != null;
+    if (token == null) return false;
+    return getTokenExp(token) > DateTime.now().millisecondsSinceEpoch;
   }
 
   static Future<bool> isSessionValid() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString(_refreshTokenKey);
+    final refreshToken = await _storage.read(key: _refreshTokenKey);
     if (refreshToken == null) return false;
     return getTokenExp(refreshToken) > DateTime.now().millisecondsSinceEpoch;
   }
@@ -71,18 +82,15 @@ class AuthService {
       final decoded = utf8.decode(base64.decode(normalized));
       final json = jsonDecode(decoded) as Map<String, dynamic>;
       return ((json['exp'] as num) * 1000).toInt();
-    } catch (_) {
+    } catch (e) {
+      // H5: surface parse errors in debug so malformed tokens are not invisible
+      if (kDebugMode) debugPrint('[AuthService] Failed to parse token exp: $e');
       return 0;
     }
   }
 
   static String? getUsername() {
     // Synchronous version using cached token — call after isAuthenticated
-    return _getUsernameFromPrefsSync();
-  }
-
-  static String? _getUsernameFromPrefsSync() {
-    // We need a sync way to get username; cache it on login/refresh
     return _cachedUsername;
   }
 
@@ -99,7 +107,9 @@ class AuthService {
       final json = jsonDecode(decoded) as Map<String, dynamic>;
       _cachedUsername = json['username'] as String?;
       return _cachedUsername;
-    } catch (_) {
+    } catch (e) {
+      // H5: surface parse errors in debug
+      if (kDebugMode) debugPrint('[AuthService] Failed to parse username from token: $e');
       return null;
     }
   }
@@ -134,8 +144,7 @@ class AuthService {
   }
 
   static Future<String> _doRefresh() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString(_refreshTokenKey);
+    final refreshToken = await _storage.read(key: _refreshTokenKey);
     if (refreshToken == null) {
       throw Exception('No refresh token');
     }
@@ -143,11 +152,18 @@ class AuthService {
     final serverUrl = await PreferencesService.getServerUrl();
     final url = Uri.parse('$serverUrl/api/token/refresh/');
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'refresh': refreshToken}),
-    );
+    final http.Response response;
+    try {
+      response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refresh': refreshToken}),
+          )
+          .timeout(_httpTimeout);
+    } on TimeoutException {
+      throw Exception('Token refresh timed out. Check your network connection.');
+    }
 
     if (response.statusCode != 200) {
       throw Exception('Token refresh failed');
@@ -155,11 +171,11 @@ class AuthService {
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     final newAccessToken = data['access'] as String;
-    await prefs.setString(_accessTokenKey, newAccessToken);
+    await _storage.write(key: _accessTokenKey, value: newAccessToken);
 
     // Some servers also rotate refresh tokens
     if (data.containsKey('refresh')) {
-      await prefs.setString(_refreshTokenKey, data['refresh'] as String);
+      await _storage.write(key: _refreshTokenKey, value: data['refresh'] as String);
     }
 
     // Update cached username

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
@@ -24,8 +25,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadUrls() async {
     final serverUrl = await PreferencesService.getServerUrl();
     final powerSyncUrl = await PreferencesService.getPowerSyncUrl();
-    _serverController.text = serverUrl;
-    _powerSyncController.text = powerSyncUrl;
+    if (!mounted) return;
+    setState(() {
+      _serverController.text = serverUrl;
+      _powerSyncController.text = powerSyncUrl;
+    });
   }
 
   String _cleanUrl(String url) {
@@ -60,86 +64,155 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings')),
       body: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Server URL
-            Text(
-              'SERVER URL',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textTertiary,
-                letterSpacing: 0.8,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _serverController,
-              keyboardType: TextInputType.url,
-              autocorrect: false,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                color: AppColors.textPrimary,
-              ),
-              decoration: const InputDecoration(
-                hintText: 'http://10.0.2.2:8000',
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Use http://10.0.2.2:8000 for Android emulator, or your server\'s IP address.',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: AppColors.textTertiary,
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // PowerSync URL
-            Text(
-              'POWERSYNC URL',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textTertiary,
-                letterSpacing: 0.8,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _powerSyncController,
-              keyboardType: TextInputType.url,
-              autocorrect: false,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                color: AppColors.textPrimary,
-              ),
-              decoration: const InputDecoration(
-                hintText: 'http://10.0.2.2:8080',
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'PowerSync service URL. Default port is 8080.',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: AppColors.textTertiary,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Save button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _save,
-                child: Text(_saved ? 'Saved!' : 'Save'),
-              ),
-            ),
-          ],
-        ),
+        child: kDebugMode ? _buildEditableSettings() : _buildLockedSettings(),
       ),
+    );
+  }
+
+  /// Editable URL form — only shown in debug builds.
+  Widget _buildEditableSettings() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Server URL
+        Text(
+          'SERVER URL',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textTertiary,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _serverController,
+          keyboardType: TextInputType.url,
+          autocorrect: false,
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            color: AppColors.textPrimary,
+          ),
+          decoration: const InputDecoration(
+            hintText: 'http://10.0.2.2:8000',
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Use http://10.0.2.2:8000 for Android emulator, or your server\'s IP address.',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: AppColors.textTertiary,
+          ),
+        ),
+        const SizedBox(height: 32),
+
+        // PowerSync URL
+        Text(
+          'POWERSYNC URL',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textTertiary,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _powerSyncController,
+          keyboardType: TextInputType.url,
+          autocorrect: false,
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            color: AppColors.textPrimary,
+          ),
+          decoration: const InputDecoration(
+            hintText: 'http://10.0.2.2:8080',
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'PowerSync service URL. Default port is 8080.',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: AppColors.textTertiary,
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Save button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _save,
+            child: Text(_saved ? 'Saved!' : 'Save'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Read-only view shown in release builds.
+  /// URLs are compiled in at build time and cannot be changed by users.
+  Widget _buildLockedSettings() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.textTertiary.withAlpha(20),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.textTertiary.withAlpha(60)),
+          ),
+          child: Text(
+            'Server configuration is managed by your administrator and cannot be changed on this device.',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: AppColors.textTertiary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 32),
+
+        Text(
+          'SERVER URL',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textTertiary,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _serverController.text.isNotEmpty ? _serverController.text : '—',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 32),
+
+        Text(
+          'POWERSYNC URL',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textTertiary,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _powerSyncController.text.isNotEmpty ? _powerSyncController.text : '—',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
     );
   }
 }

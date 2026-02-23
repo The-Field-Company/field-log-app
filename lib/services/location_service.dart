@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
@@ -18,7 +19,8 @@ class LocationService {
         'longitude': position.longitude,
         'accuracy': position.accuracy,
       };
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[LocationService] captureLocation failed: $e');
       return null;
     }
   }
@@ -49,7 +51,8 @@ class LocationService {
       }
 
       return 'Location available';
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[LocationService] getStatus failed: $e');
       return 'Location unavailable';
     }
   }
