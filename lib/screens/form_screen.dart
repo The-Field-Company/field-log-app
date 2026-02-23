@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 import '../models/session.dart';
@@ -89,7 +90,7 @@ class _FormScreenState extends State<FormScreen> {
   }
 
   Future<void> _initLocation() async {
-    final status = await LocationService.getStatus();
+    final status = await LocationService.requestAndCheckStatus();
     if (mounted) {
       setState(() {
         _locationStatus = status;
@@ -278,6 +279,108 @@ class _FormScreenState extends State<FormScreen> {
     }
   }
 
+  Widget _buildLocationIndicator() {
+    if (!_session.trackLocation) return const SizedBox.shrink();
+
+    // Transient: acquiring — subtle strip, disappears once resolved
+    if (_locationStatus == 'Acquiring location...') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.dividerColor)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: AppColors.textTertiary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Acquiring location...',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Ready: silent
+    if (_locationReady) return const SizedBox.shrink();
+
+    // Persistent: service disabled or permanently denied — banner with action.
+    // 'Location permission denied' after requesting means the user just tapped
+    // Deny on the native dialog; no settings action is available at that point.
+    final bool isServiceDisabled =
+        _locationStatus == 'Location services disabled';
+    final bool isPermanentlyDenied =
+        _locationStatus == 'Location access permanently denied';
+    final bool hasSettingsAction = isServiceDisabled || isPermanentlyDenied;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(16, 12, hasSettingsAction ? 8 : 16, 12),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        border: Border(
+          bottom: BorderSide(color: Colors.orange.shade200),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.location_off_outlined,
+            size: 16,
+            color: Colors.orange.shade700,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _locationStatus,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          if (hasSettingsAction)
+            TextButton(
+              onPressed: () async {
+                if (isServiceDisabled) {
+                  await Geolocator.openLocationSettings();
+                } else {
+                  await Geolocator.openAppSettings();
+                }
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accent,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Open Settings',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.accent,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -292,44 +395,8 @@ class _FormScreenState extends State<FormScreen> {
       ),
       body: Column(
         children: [
-          // Form renderer
+          _buildLocationIndicator(),
           Expanded(child: _buildRenderer()),
-          // GPS status indicator — only shown while acquiring
-          if (_session.trackLocation && !_locationReady)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: _locationReady
-                    ? AppColors.accent.withValues(alpha: 0.05)
-                    : Colors.orange.withValues(alpha: 0.05),
-                border: Border(
-                  top: BorderSide(color: Colors.grey.shade200),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _locationReady
-                        ? Icons.location_on
-                        : Icons.location_searching,
-                    size: 16,
-                    color: _locationReady ? AppColors.accent : Colors.orange,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _locationStatus,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: _locationReady
-                          ? AppColors.accent
-                          : Colors.orange.shade700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

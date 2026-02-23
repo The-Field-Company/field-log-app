@@ -39,14 +39,44 @@ class LocationService {
     return true;
   }
 
+  /// Requests permission if not yet granted, then returns a detailed status.
+  /// Call this on form load — it shows the native dialog on first use.
+  static Future<String> requestAndCheckStatus() async {
+    try {
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return 'Location services disabled';
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return 'Location access permanently denied';
+      }
+      if (permission == LocationPermission.denied) {
+        return 'Location permission denied';
+      }
+
+      return 'Location available';
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[LocationService] requestAndCheckStatus failed: $e');
+      }
+      return 'Location unavailable';
+    }
+  }
+
   static Future<String> getStatus() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return 'Location services disabled';
 
       LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.deniedForever) {
+        return 'Location access permanently denied';
+      }
+      if (permission == LocationPermission.denied) {
         return 'Location permission denied';
       }
 
