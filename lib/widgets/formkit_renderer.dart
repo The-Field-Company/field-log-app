@@ -12,7 +12,7 @@ import 'field_widgets/time_field_widget.dart';
 
 class FormkitRenderer extends StatefulWidget {
   final List<dynamic> components;
-  final void Function(Map<String, dynamic> data) onSubmit;
+  final Future<void> Function(Map<String, dynamic> data) onSubmit;
 
   const FormkitRenderer({
     super.key,
@@ -28,6 +28,7 @@ class _FormkitRendererState extends State<FormkitRenderer> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, dynamic> _data = {};
   late List<FormComponent> _parsed;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -47,9 +48,14 @@ class _FormkitRendererState extends State<FormkitRenderer> {
     }
   }
 
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      widget.onSubmit(Map.from(_data));
+  Future<void> _submit() async {
+    if (_submitting) return;
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
+    try {
+      await widget.onSubmit(Map.from(_data));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -214,8 +220,17 @@ class _FormkitRendererState extends State<FormkitRenderer> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _submit,
-                  child: const Text('Submit'),
+                  onPressed: _submitting ? null : _submit,
+                  child: _submitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Submit'),
                 ),
               ),
             ),

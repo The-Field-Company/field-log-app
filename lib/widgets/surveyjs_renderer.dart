@@ -23,7 +23,7 @@ import 'field_widgets/image_picker_field_widget.dart';
 
 class SurveyjsRenderer extends StatefulWidget {
   final Map<String, dynamic> schema;
-  final void Function(Map<String, dynamic> data) onSubmit;
+  final Future<void> Function(Map<String, dynamic> data) onSubmit;
 
   const SurveyjsRenderer({
     super.key,
@@ -39,6 +39,7 @@ class _SurveyjsRendererState extends State<SurveyjsRenderer> {
   GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final Map<String, dynamic> _data = {};
   int _currentPage = 0;
+  bool _submitting = false;
 
   List<SurveyPage> get _allPages {
     final pagesJson = widget.schema['pages'] as List<dynamic>? ?? [];
@@ -85,9 +86,14 @@ class _SurveyjsRendererState extends State<SurveyjsRenderer> {
     });
   }
 
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      widget.onSubmit(Map.from(_data));
+  Future<void> _submit() async {
+    if (_submitting) return;
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
+    try {
+      await widget.onSubmit(Map.from(_data));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -596,12 +602,21 @@ class _SurveyjsRendererState extends State<SurveyjsRenderer> {
                           const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed:
-                                _currentPage < pages.length - 1
+                            onPressed: _submitting
+                                ? null
+                                : (_currentPage < pages.length - 1
                                     ? _nextPage
-                                    : _submit,
-                            child: Text(
-                                _currentPage < pages.length - 1
+                                    : _submit),
+                            child: _submitting
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(_currentPage < pages.length - 1
                                     ? 'Next'
                                     : 'Submit'),
                           ),
@@ -611,8 +626,17 @@ class _SurveyjsRendererState extends State<SurveyjsRenderer> {
                   : SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _submit,
-                        child: const Text('Submit'),
+                        onPressed: _submitting ? null : _submit,
+                        child: _submitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Submit'),
                       ),
                     ),
             ),

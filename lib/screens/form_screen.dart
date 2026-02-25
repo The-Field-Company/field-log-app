@@ -31,6 +31,8 @@ class _FormScreenState extends State<FormScreen> {
   Map<String, int> _tallyCounts = {};
   bool _tallyCountsLoaded = false;
   bool _sessionRefreshed = false;
+  Map<String, dynamic>? _cachedLocation;
+  DateTime? _locationCapturedAt;
 
   @override
   void didChangeDependencies() {
@@ -96,7 +98,26 @@ class _FormScreenState extends State<FormScreen> {
         _locationStatus = status;
         _locationReady = status == 'Location available';
       });
+      // Start capturing in background so the fix is ready by submit time.
+      if (_locationReady) _prefetchLocation();
     }
+  }
+
+  Future<void> _prefetchLocation() async {
+    final location = await LocationService.captureLocation();
+    if (mounted && location != null) {
+      _cachedLocation = location;
+      _locationCapturedAt = DateTime.now();
+    }
+  }
+
+  /// Returns the cached fix if it is less than 60 seconds old, otherwise null.
+  /// 60 s is accurate enough for a stationary or slow-moving field observer.
+  Map<String, dynamic>? _freshCachedLocation() {
+    if (_cachedLocation == null || _locationCapturedAt == null) return null;
+    if (DateTime.now().difference(_locationCapturedAt!) >
+        const Duration(seconds: 60)) return null;
+    return _cachedLocation;
   }
 
   void _onSyncTransition(SyncStateTransition transition) {
@@ -183,9 +204,10 @@ class _FormScreenState extends State<FormScreen> {
     // Base64-encode any captured files before submission
     await _encodeFiles(data);
 
-    // Attach location if tracking
+    // Attach location if tracking. Use prefetched fix when fresh, else capture now.
     if (_session.trackLocation) {
-      final location = await LocationService.captureLocation();
+      final location =
+          _freshCachedLocation() ?? await LocationService.captureLocation();
       if (location != null) {
         data['_location'] = location;
       }
@@ -210,9 +232,10 @@ class _FormScreenState extends State<FormScreen> {
   }
 
   Future<void> _submitTally(Map<String, dynamic> data) async {
-    // Attach location if tracking
+    // Attach location if tracking. Use prefetched fix when fresh, else capture now.
     if (_session.trackLocation) {
-      final location = await LocationService.captureLocation();
+      final location =
+          _freshCachedLocation() ?? await LocationService.captureLocation();
       if (location != null) {
         data['_location'] = location;
       }
