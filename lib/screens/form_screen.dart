@@ -138,7 +138,7 @@ class _FormScreenState extends State<FormScreen> {
         message = 'You\'re offline \u2014 data saves locally';
         bgColor = Colors.orange.shade700;
       case SyncStateTransition.backOnline:
-        message = 'Back online \u2014 syncing...';
+        message = 'Back online';
         bgColor = AppColors.accentLight;
       case SyncStateTransition.syncComplete:
         message = 'All submissions synced';

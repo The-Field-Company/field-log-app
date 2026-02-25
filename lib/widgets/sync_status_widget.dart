@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:powersync/powersync.dart';
 import '../theme/app_colors.dart';
 import '../services/powersync_service.dart';
+import '../services/connectivity_service.dart';
 
 /// A compact pill widget that shows the current sync state.
 /// Designed for app bars — small, unobtrusive, glanceable.
@@ -21,7 +22,11 @@ class SyncStatusWidget extends StatefulWidget {
 enum SyncStateTransition { wentOffline, backOnline, syncComplete }
 
 class _SyncStatusWidgetState extends State<SyncStatusWidget> {
-  StreamSubscription<SyncStatus>? _subscription;
+  // Two independent subscriptions:
+  // - connectivity_plus → _connected (immediate OS-level signal)
+  // - PowerSync statusStream → _uploading only
+  StreamSubscription<bool>? _connectivitySubscription;
+  StreamSubscription<SyncStatus>? _psSubscription;
   bool _connected = false;
   bool _uploading = false;
   bool? _previousConnected;
@@ -33,44 +38,51 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
   }
 
   void _listenToStatus() {
+    // 1. Device-level connectivity for immediate offline/online detection.
+    //    Responds as soon as the OS reports a network interface change, without
+    //    waiting for PowerSync's WebSocket to time out (up to 30 s).
+    _connected = ConnectivityService.isOnline;
+    _previousConnected = _connected;
+
+    _connectivitySubscription = ConnectivityService.stream.listen((isOnline) {
+      if (!mounted) return;
+      final wasConnected = _previousConnected;
+      setState(() => _connected = isOnline);
+
+      if (widget.onTransition != null) {
+        if (wasConnected == true && !isOnline) {
+          widget.onTransition!(SyncStateTransition.wentOffline);
+        } else if (wasConnected == false && isOnline) {
+          widget.onTransition!(SyncStateTransition.backOnline);
+        }
+      }
+      _previousConnected = isOnline;
+    });
+
+    // 2. PowerSync stream — upload state and syncComplete transition only.
+    //    No longer used for offline/online detection.
     final db = PowerSyncService.getPowerSync();
     if (db == null) return;
 
-    // Set initial state
-    final current = db.currentStatus;
-    _connected = current.connected;
-    _uploading = current.uploading;
-    _previousConnected = _connected;
+    _uploading = db.currentStatus.uploading;
 
-    _subscription = db.statusStream.listen((status) {
+    _psSubscription = db.statusStream.listen((status) {
       if (!mounted) return;
-
-      final wasConnected = _previousConnected;
       final wasUploading = _uploading;
+      setState(() => _uploading = status.uploading);
 
-      setState(() {
-        _connected = status.connected;
-        _uploading = status.uploading;
-      });
-
-      // Detect transitions for toast notifications
       if (widget.onTransition != null) {
-        if (wasConnected == true && !status.connected) {
-          widget.onTransition!(SyncStateTransition.wentOffline);
-        } else if (wasConnected == false && status.connected) {
-          widget.onTransition!(SyncStateTransition.backOnline);
-        } else if (wasUploading && !status.uploading && status.connected) {
+        if (wasUploading && !status.uploading && _connected) {
           widget.onTransition!(SyncStateTransition.syncComplete);
         }
       }
-
-      _previousConnected = status.connected;
     });
   }
 
   @override
   void dispose() {
-    _subscription?.cancel();
+    _connectivitySubscription?.cancel();
+    _psSubscription?.cancel();
     super.dispose();
   }
 
@@ -89,8 +101,8 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
       label = 'Syncing';
       color = AppColors.accentLight;
     } else {
-      icon = Icons.cloud_done_outlined;
-      label = 'Synced';
+      icon = Icons.cloud_outlined;
+      label = 'Online';
       color = AppColors.accent;
     }
 
@@ -138,29 +150,48 @@ class SyncStatusText extends StatefulWidget {
 }
 
 class _SyncStatusTextState extends State<SyncStatusText> {
-  StreamSubscription<SyncStatus>? _subscription;
+  StreamSubscription<bool>? _connectivitySubscription;
+  StreamSubscription<SyncStatus>? _psSubscription;
   bool _connected = false;
   bool _uploading = false;
-  // Only true once we observe uploading→done while connected on this screen.
-  // Prevents the false "Uploaded to server" state on mount before PowerSync
-  // has started processing the just-submitted record.
+  // True once upload is confirmed done. Set either by observing the
+  // uploading→done transition via the stream, or — to fix the race where the
+  // upload completes before this screen renders — by finding ps_crud empty on
+  // mount.
   bool _uploadConfirmed = false;
 
   @override
   void initState() {
     super.initState();
+
+    // 1. Device-level connectivity — drives the offline/online display.
+    _connected = ConnectivityService.isOnline;
+    _connectivitySubscription = ConnectivityService.stream.listen((isOnline) {
+      if (!mounted) return;
+      setState(() => _connected = isOnline);
+    });
+
+    // 2. PowerSync stream — drives uploading state and upload confirmation.
     final db = PowerSyncService.getPowerSync();
     if (db != null) {
-      final current = db.currentStatus;
-      _connected = current.connected;
-      _uploading = current.uploading;
+      _uploading = db.currentStatus.uploading;
 
-      _subscription = db.statusStream.listen((status) {
+      // If connected and idle on mount the upload may have already finished
+      // before this screen rendered (fast network / fast server). Check the
+      // CRUD queue directly rather than waiting for a transition that already
+      // happened and will never fire again.
+      if (_connected && !_uploading) {
+        _checkPendingCrud(db);
+      }
+
+      _psSubscription = db.statusStream.listen((status) {
         if (!mounted) return;
         final wasUploading = _uploading;
         setState(() {
-          _connected = status.connected;
           _uploading = status.uploading;
+          // Use status.connected (PowerSync WebSocket) here rather than
+          // _connected (device level) so confirmation is tied to the actual
+          // upload completing on the PowerSync service, not just device state.
           if (wasUploading && !status.uploading && status.connected) {
             _uploadConfirmed = true;
           }
@@ -169,9 +200,25 @@ class _SyncStatusTextState extends State<SyncStatusText> {
     }
   }
 
+  /// Queries the PowerSync CRUD queue. If it is empty while connected and
+  /// idle, the upload completed before this widget mounted.
+  Future<void> _checkPendingCrud(PowerSyncDatabase db) async {
+    try {
+      final rows = await db.getAll('SELECT id FROM ps_crud LIMIT 1');
+      // Bail out if state changed while the query was in flight.
+      if (!mounted || _uploadConfirmed || _uploading) return;
+      if (rows.isEmpty) {
+        setState(() => _uploadConfirmed = true);
+      }
+    } catch (_) {
+      // ps_crud inaccessible (SDK change) — stream-based detection still active.
+    }
+  }
+
   @override
   void dispose() {
-    _subscription?.cancel();
+    _connectivitySubscription?.cancel();
+    _psSubscription?.cancel();
     super.dispose();
   }
 
