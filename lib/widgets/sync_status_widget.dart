@@ -141,6 +141,10 @@ class _SyncStatusTextState extends State<SyncStatusText> {
   StreamSubscription<SyncStatus>? _subscription;
   bool _connected = false;
   bool _uploading = false;
+  // Only true once we observe uploading→done while connected on this screen.
+  // Prevents the false "Uploaded to server" state on mount before PowerSync
+  // has started processing the just-submitted record.
+  bool _uploadConfirmed = false;
 
   @override
   void initState() {
@@ -153,9 +157,13 @@ class _SyncStatusTextState extends State<SyncStatusText> {
 
       _subscription = db.statusStream.listen((status) {
         if (!mounted) return;
+        final wasUploading = _uploading;
         setState(() {
           _connected = status.connected;
           _uploading = status.uploading;
+          if (wasUploading && !status.uploading && status.connected) {
+            _uploadConfirmed = true;
+          }
         });
       });
     }
@@ -173,18 +181,23 @@ class _SyncStatusTextState extends State<SyncStatusText> {
     late final String text;
     late final Color color;
 
-    if (!_connected) {
-      icon = Icons.cloud_queue_outlined;
-      text = 'Saved locally \u2014 will upload when online';
-      color = Colors.orange.shade700;
-    } else if (_uploading) {
-      icon = Icons.cloud_upload_outlined;
-      text = 'Uploading to server...';
-      color = AppColors.accentLight;
-    } else {
+    if (_uploadConfirmed) {
+      // Terminal state: upload is done regardless of current connectivity.
+      // Must be checked first — going offline after a confirmed upload does
+      // not invalidate the upload.
       icon = Icons.cloud_done_outlined;
       text = 'Uploaded to server';
       color = AppColors.accent;
+    } else if (!_connected) {
+      icon = Icons.cloud_queue_outlined;
+      text = 'Saved locally \u2014 will upload when online';
+      color = Colors.orange.shade700;
+    } else {
+      // Covers both: actively uploading, and pending (connected but PowerSync
+      // hasn't started the cycle yet). Both correctly read as "in progress".
+      icon = Icons.cloud_upload_outlined;
+      text = 'Uploading to server...';
+      color = AppColors.accentLight;
     }
 
     return Row(

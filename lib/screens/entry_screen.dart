@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
 import '../services/powersync_service.dart';
+import '../widgets/sync_status_widget.dart';
 
 class EntryScreen extends StatefulWidget {
   const EntryScreen({super.key});
@@ -101,6 +102,7 @@ class _EntryScreenState extends State<EntryScreen> {
                       ),
                     ),
                   const Spacer(),
+                  const SyncStatusWidget(),
                   IconButton(
                     icon: const Icon(Icons.logout_outlined,
                         color: AppColors.textTertiary),
