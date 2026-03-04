@@ -31,7 +31,8 @@ void main() async {
         initialRoute = '/';
         try {
           await PowerSyncService.initPowerSync();
-        } catch (e) {
+        } catch (e, stackTrace) {
+          await Sentry.captureException(e, stackTrace: stackTrace);
           if (kDebugMode) debugPrint('[PowerSync] init failed on startup: $e');
         }
       }

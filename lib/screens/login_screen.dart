@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
 import '../services/powersync_service.dart';
@@ -42,7 +43,8 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _error = 'No internet connection');
     } on TimeoutException {
       setState(() => _error = 'Connection timed out. Check your server address.');
-    } catch (e) {
+    } catch (e, stackTrace) {
+      await Sentry.captureException(e, stackTrace: stackTrace);
       setState(() => _error = 'Invalid username or password');
     } finally {
       if (mounted) setState(() => _loading = false);

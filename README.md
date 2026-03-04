@@ -22,7 +22,7 @@ cp .env.json.example .env.json
 |---|---|
 | `SERVER_URL` | FieldLog API base URL |
 | `POWERSYNC_URL` | PowerSync service URL |
-| `GLITCHTIP_DSN` | GlitchTip DSN for error tracking — obtain from GlitchTip after creating a project (`Settings → Projects → [project] → Client Keys`) |
+| `GLITCHTIP_DSN` | GlitchTip DSN for error tracking — obtain from GlitchTip after creating a project (`Projects → [project] → Project Settings → Client Keys (DSN)`) |
 
 ## Running locally
 
@@ -59,25 +59,6 @@ The emulator reaches your host machine via `10.0.2.2`. The defaults in `.env.jso
 cp .env.json.example .env.json
 flutter run --dart-define-from-file=.env.json
 ```
-
-## Running on iOS (simulator)
-
-The iOS simulator reaches your host machine via `127.0.0.1`. Update `.env.json`:
-
-```json
-{
-  "SERVER_URL": "http://127.0.0.1:8000",
-  "POWERSYNC_URL": "http://127.0.0.1:8080"
-}
-```
-
-Then run:
-
-```bash
-flutter run --dart-define-from-file=.env.json -d <simulator-id>
-```
-
-To list available simulators: `flutter devices`
 
 ## Building for release
 

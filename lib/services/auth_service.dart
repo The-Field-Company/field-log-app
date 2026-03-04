@@ -69,9 +69,11 @@ class AuthService {
     scheduleRefresh();
 
     final loggedInUser = await getUsernameAsync();
-    await Sentry.configureScope(
-      (scope) => scope.setUser(SentryUser(username: loggedInUser)),
-    );
+    if (loggedInUser != null) {
+      await Sentry.configureScope(
+        (scope) => scope.setUser(SentryUser(username: loggedInUser)),
+      );
+    }
   }
 
   static Future<void> logout() async {
@@ -228,7 +230,7 @@ class AuthService {
       _refreshTimer = Timer(
         Duration(milliseconds: delay > 0 ? delay : 0),
         () => refreshAccessToken().catchError((e, st) {
-          Sentry.captureException(e, stackTrace: st as StackTrace?);
+          Sentry.captureException(e, stackTrace: st is StackTrace ? st : null);
           return '';
         }),
       );
@@ -245,9 +247,11 @@ class AuthService {
     await getUsernameAsync();
     scheduleRefresh();
 
-    await Sentry.configureScope(
-      (scope) => scope.setUser(SentryUser(username: _cachedUsername)),
-    );
+    if (_cachedUsername != null) {
+      await Sentry.configureScope(
+        (scope) => scope.setUser(SentryUser(username: _cachedUsername)),
+      );
+    }
     return true;
   }
 }

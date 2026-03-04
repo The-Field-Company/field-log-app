@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../theme/app_colors.dart';
 import '../models/session.dart';
 import '../services/api_service.dart';
@@ -56,9 +57,11 @@ class _EntryScreenState extends State<EntryScreen> {
       await PreferencesService.cacheSession(session);
       if (!mounted) return;
       Navigator.pushNamed(context, '/form', arguments: session);
-    } on ApiException catch (e) {
+    } on ApiException catch (e, stackTrace) {
+      await Sentry.captureException(e, stackTrace: stackTrace);
       setState(() => _error = e.message);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      await Sentry.captureException(e, stackTrace: stackTrace);
       setState(() => _error = 'Network error. Check your connection and server URL.');
     } finally {
       if (mounted) setState(() => _loading = false);
