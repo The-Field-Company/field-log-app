@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../models/session.dart';
 import 'preferences_service.dart';
 import 'auth_service.dart';
@@ -31,12 +32,15 @@ class ApiService {
     final url = Uri.parse('$serverUrl/api/sessions/$sessionId/');
 
     final http.Response response;
+    final client = SentryHttpClient();
     try {
-      response = await http
+      response = await client
           .get(url, headers: await _authHeaders())
           .timeout(_httpTimeout);
     } on TimeoutException {
       throw ApiException('Request timed out. Check your connection and try again.');
+    } finally {
+      client.close();
     }
 
     if (response.statusCode == 404) {
@@ -65,8 +69,9 @@ class ApiService {
     final url = Uri.parse('$serverUrl/api/sessions/$sessionId/submissions/');
 
     final http.Response response;
+    final client = SentryHttpClient();
     try {
-      response = await http
+      response = await client
           .post(
             url,
             headers: {
@@ -81,6 +86,8 @@ class ApiService {
           .timeout(_httpTimeout);
     } on TimeoutException {
       throw ApiException('Request timed out. Check your connection and try again.');
+    } finally {
+      client.close();
     }
 
     if (response.statusCode == 401 || response.statusCode == 403) {

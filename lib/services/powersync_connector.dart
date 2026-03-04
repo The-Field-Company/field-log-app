@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:powersync/powersync.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'auth_service.dart';
 import 'preferences_service.dart';
 
@@ -55,6 +56,11 @@ class FieldLogConnector extends PowerSyncBackendConnector {
         if (kDebugMode) {
           debugPrint('[PowerSync] Skipping record ${op.id} — malformed JSON data: $e');
         }
+        await Sentry.captureMessage(
+          'PowerSync skipped record due to malformed JSON data',
+          level: SentryLevel.warning,
+          withScope: (scope) => scope.setTag('op_id', op.id),
+        );
         continue;
       }
 
@@ -92,11 +98,12 @@ class FieldLogConnector extends PowerSyncBackendConnector {
     required String body,
   }) async {
     int attempt = 0;
-
+    final client = SentryHttpClient();
+    try {
     while (true) {
       attempt++;
       try {
-        final response = await http
+        final response = await client
             .post(url, headers: headers, body: body)
             .timeout(_httpTimeout);
 
@@ -105,12 +112,28 @@ class FieldLogConnector extends PowerSyncBackendConnector {
 
         // 4xx = permanent failure (bad request, auth, not found) — don't retry
         if (response.statusCode >= 400 && response.statusCode < 500) {
-          throw Exception('Upload failed (${response.statusCode}) for record $opId: ${response.body}');
+          final error = Exception('Upload failed (${response.statusCode}) for record $opId: ${response.body}');
+          await Sentry.captureException(
+            error,
+            withScope: (scope) {
+              scope.setTag('op_id', opId);
+              scope.setTag('http_status', response.statusCode.toString());
+            },
+          );
+          throw error;
         }
 
         // 5xx = transient server error — fall through to retry logic below
         if (attempt > _maxRetries) {
-          throw Exception('Upload failed after $_maxRetries attempts (${response.statusCode}) for record $opId');
+          final error = Exception('Upload failed after $_maxRetries attempts (${response.statusCode}) for record $opId');
+          await Sentry.captureException(
+            error,
+            withScope: (scope) {
+              scope.setTag('op_id', opId);
+              scope.setTag('http_status', response.statusCode.toString());
+            },
+          );
+          throw error;
         }
 
         if (kDebugMode) {
@@ -118,7 +141,12 @@ class FieldLogConnector extends PowerSyncBackendConnector {
         }
       } on TimeoutException {
         if (attempt > _maxRetries) {
-          throw Exception('Upload timed out after $_maxRetries attempts for record $opId. Will retry on next sync.');
+          final error = Exception('Upload timed out after $_maxRetries attempts for record $opId. Will retry on next sync.');
+          await Sentry.captureException(
+            error,
+            withScope: (scope) => scope.setTag('op_id', opId),
+          );
+          throw error;
         }
         if (kDebugMode) {
           debugPrint('[PowerSync] Timeout on attempt $attempt for $opId, retrying...');
@@ -127,6 +155,9 @@ class FieldLogConnector extends PowerSyncBackendConnector {
 
       // Exponential backoff: 1 s, 2 s, 4 s
       await Future.delayed(Duration(seconds: 1 << (attempt - 1)));
+    }
+    } finally {
+      client.close();
     }
   }
 }

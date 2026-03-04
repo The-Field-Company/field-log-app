@@ -22,6 +22,7 @@ cp .env.json.example .env.json
 |---|---|
 | `SERVER_URL` | FieldLog API base URL |
 | `POWERSYNC_URL` | PowerSync service URL |
+| `GLITCHTIP_DSN` | GlitchTip DSN for error tracking — obtain from GlitchTip after creating a project (`Settings → Projects → [project] → Client Keys`) |
 
 ## Running locally
 

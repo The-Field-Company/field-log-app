@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/session.dart';
 import '../theme/app_colors.dart';
@@ -57,25 +58,34 @@ class _FormScreenState extends State<FormScreen> {
       return;
     }
 
-    final rows = await db.getAll(
-      'SELECT data FROM fieldlog_submission WHERE session_id = ?',
-      [_session.id],
-    );
+    try {
+      final rows = await db.getAll(
+        'SELECT data FROM fieldlog_submission WHERE session_id = ?',
+        [_session.id],
+      );
 
-    final counts = <String, int>{};
-    for (final row in rows) {
-      final data = jsonDecode(row['data'] as String) as Map<String, dynamic>;
-      final key = data['tally_key'] as String?;
-      if (key != null) {
-        counts[key] = (counts[key] ?? 0) + 1;
+      final counts = <String, int>{};
+      for (final row in rows) {
+        final data = jsonDecode(row['data'] as String) as Map<String, dynamic>;
+        final key = data['tally_key'] as String?;
+        if (key != null) {
+          counts[key] = (counts[key] ?? 0) + 1;
+        }
       }
-    }
 
-    if (mounted) {
-      setState(() {
-        _tallyCounts = counts;
-        _tallyCountsLoaded = true;
-      });
+      if (mounted) {
+        setState(() {
+          _tallyCounts = counts;
+          _tallyCountsLoaded = true;
+        });
+      }
+    } catch (e, stackTrace) {
+      await Sentry.captureException(
+        e,
+        stackTrace: stackTrace,
+        withScope: (scope) => scope.setTag('session_id', _session.id.toString()),
+      );
+      if (mounted) setState(() => _tallyCountsLoaded = true);
     }
   }
 
@@ -201,26 +211,58 @@ class _FormScreenState extends State<FormScreen> {
   }
 
   Future<void> _submitFormData(Map<String, dynamic> data) async {
-    // Base64-encode any captured files before submission
-    await _encodeFiles(data);
-
-    // Attach location if tracking. Use prefetched fix when fresh, else capture now.
-    if (_session.trackLocation) {
-      final location =
-          _freshCachedLocation() ?? await LocationService.captureLocation();
-      if (location != null) {
-        data['_location'] = location;
-      }
-    }
+    final transaction = Sentry.startTransaction(
+      'submit_observation',
+      'form',
+      bindToScope: true,
+    );
+    transaction.setTag('session_id', _session.id.toString());
 
     try {
-      await _submitToLocal(data);
-    } catch (e) {
+      // Span 1: base64-encode any captured files before submission
+      final encodeSpan = transaction.startChild(
+        'encode_files',
+        description: 'Base64-encode file attachments',
+      );
+      try {
+        await _encodeFiles(data);
+      } finally {
+        await encodeSpan.finish();
+      }
+
+      // Attach location if tracking. Use prefetched fix when fresh, else capture now.
+      if (_session.trackLocation) {
+        final location =
+            _freshCachedLocation() ?? await LocationService.captureLocation();
+        if (location != null) {
+          data['_location'] = location;
+        }
+      }
+
+      // Span 2: write to local PowerSync SQLite
+      final submitSpan = transaction.startChild(
+        'submit_local',
+        description: 'Insert submission into PowerSync local DB',
+      );
+      try {
+        await _submitToLocal(data);
+      } finally {
+        await submitSpan.finish();
+      }
+    } catch (e, stackTrace) {
+      transaction.throwable = e;
+      await Sentry.captureException(
+        e,
+        stackTrace: stackTrace,
+        withScope: (scope) => scope.setTag('session_id', _session.id.toString()),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to save: $e')),
       );
       return;
+    } finally {
+      await transaction.finish();
     }
 
     if (!mounted) return;
@@ -243,7 +285,12 @@ class _FormScreenState extends State<FormScreen> {
 
     try {
       await _submitToLocal(data);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      await Sentry.captureException(
+        e,
+        stackTrace: stackTrace,
+        withScope: (scope) => scope.setTag('session_id', _session.id.toString()),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

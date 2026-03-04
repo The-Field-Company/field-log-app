@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'preferences_service.dart';
 
 class AuthService {
@@ -66,6 +67,11 @@ class AuthService {
     await _storage.write(key: _refreshTokenKey, value: data['refresh'] as String);
 
     scheduleRefresh();
+
+    final loggedInUser = await getUsernameAsync();
+    await Sentry.configureScope(
+      (scope) => scope.setUser(SentryUser(username: loggedInUser)),
+    );
   }
 
   static Future<void> logout() async {
@@ -75,6 +81,8 @@ class AuthService {
 
     await _storage.delete(key: _accessTokenKey);
     await _storage.delete(key: _refreshTokenKey);
+
+    await Sentry.configureScope((scope) => scope.setUser(null));
   }
 
   static Future<String?> getToken() async {
@@ -219,7 +227,10 @@ class AuthService {
       final delay = getTokenExp(token) - DateTime.now().millisecondsSinceEpoch - 60000;
       _refreshTimer = Timer(
         Duration(milliseconds: delay > 0 ? delay : 0),
-        () => refreshAccessToken().catchError((_) => ''),
+        () => refreshAccessToken().catchError((e, st) {
+          Sentry.captureException(e, stackTrace: st as StackTrace?);
+          return '';
+        }),
       );
     }();
   }
@@ -233,6 +244,10 @@ class AuthService {
     }
     await getUsernameAsync();
     scheduleRefresh();
+
+    await Sentry.configureScope(
+      (scope) => scope.setUser(SentryUser(username: _cachedUsername)),
+    );
     return true;
   }
 }
