@@ -126,7 +126,9 @@ class _FormScreenState extends State<FormScreen> {
   Map<String, dynamic>? _freshCachedLocation() {
     if (_cachedLocation == null || _locationCapturedAt == null) return null;
     if (DateTime.now().difference(_locationCapturedAt!) >
-        const Duration(seconds: 60)) return null;
+        const Duration(seconds: 60)) {
+      return null;
+    }
     return _cachedLocation;
   }
 

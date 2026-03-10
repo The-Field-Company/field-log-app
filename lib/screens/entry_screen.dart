@@ -57,8 +57,7 @@ class _EntryScreenState extends State<EntryScreen> {
       await PreferencesService.cacheSession(session);
       if (!mounted) return;
       Navigator.pushNamed(context, '/form', arguments: session);
-    } on ApiException catch (e, stackTrace) {
-      await Sentry.captureException(e, stackTrace: stackTrace);
+    } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e, stackTrace) {
       await Sentry.captureException(e, stackTrace: stackTrace);
