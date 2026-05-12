@@ -15,9 +15,10 @@ void main() async {
   await SentryFlutter.init(
     (options) {
       options.dsn = const String.fromEnvironment('GLITCHTIP_DSN');
-      options.tracesSampleRate = kDebugMode ? 1.0 : 0.1;
+      options.tracesSampleRate = kDebugMode ? 1.0 : 0.01;
       options.environment = kDebugMode ? 'debug' : 'production';
       options.sendDefaultPii = false;
+      options.enableAutoSessionTracking = false;
     },
     appRunner: () async {
       // Initialise OS-level connectivity before anything else so the signal is
