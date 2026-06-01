@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'connectivity_service.dart';
 import 'preferences_service.dart';
 
 class AuthService {
@@ -152,9 +153,13 @@ class AuthService {
     if (token == null) return;
 
     final remaining = getTokenExp(token) - DateTime.now().millisecondsSinceEpoch;
-    if (remaining < _tokenFreshnessMs) {
-      await refreshAccessToken();
-    }
+    if (remaining >= _tokenFreshnessMs) return;
+
+    // If offline, skip the refresh attempt — the token will be refreshed the
+    // next time this is called with connectivity (e.g. when PowerSync reconnects).
+    if (!ConnectivityService.isOnline) return;
+
+    await refreshAccessToken();
   }
 
   static Future<String> refreshAccessToken() async {
@@ -237,9 +242,13 @@ class AuthService {
     }();
   }
 
-  /// Call on app start to restore session state
+  /// Call on app start to restore session state.
+  ///
+  /// The refresh token is the single gate: if it's present and unexpired, the
+  /// user is allowed into the app regardless of whether the access token has
+  /// expired. The access token will be refreshed silently on the next online
+  /// interaction (e.g. when PowerSync calls fetchCredentials).
   static Future<bool> initSession() async {
-    if (!await isAuthenticated()) return false;
     if (!await isSessionValid()) {
       await logout();
       return false;

@@ -13,7 +13,13 @@ class FieldLogConnector extends PowerSyncBackendConnector {
 
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async {
-    await AuthService.ensureFreshToken();
+    try {
+      await AuthService.ensureFreshToken();
+    } catch (e) {
+      // Offline or refresh failed — return null so PowerSync pauses sync
+      // and retries when credentials are next requested.
+      return null;
+    }
 
     final token = await AuthService.getToken();
     if (token == null) return null;
@@ -31,7 +37,13 @@ class FieldLogConnector extends PowerSyncBackendConnector {
     final transaction = await database.getNextCrudTransaction();
     if (transaction == null) return;
 
-    await AuthService.ensureFreshToken();
+    try {
+      await AuthService.ensureFreshToken();
+    } catch (e) {
+      // Offline or refresh failed — leave the transaction in the queue so
+      // PowerSync retries it on the next sync cycle.
+      return;
+    }
     final token = await AuthService.getToken();
     final serverUrl = await PreferencesService.getServerUrl();
 
